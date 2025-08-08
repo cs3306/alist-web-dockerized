@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  onedrive-oauth:
+    image: yourusername/onedrive-oauth:latest  # 替换为你的 Docker Hub 用户名
+    container_name: onedrive-oauth
+    restart: unless-stopped
+    ports:
+      - "8080:80"     # Nginx 端口（Web 界面）
+      - "3000:3000"   # Node.js API 端口
+    environment:
+      - TZ=Asia/Shanghai  # 时区设置
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # 如果需要自定义 nginx 日志位置
+      - ./logs/nginx:/var/log/nginx
+      - ./logs/supervisor:/var/log/supervisor
+      # 如果需要挂载自定义的 HTML 文件
+      # - ./custom-index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - oauth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"  # 支持 Watchtower 自动更新
+      - "traefik.enable=true"  # 如果使用 Traefik
+      - "traefik.http.routers.onedrive-oauth.rule=Host(`oauth.yourdomain.com`)"  # 替换域名
+      - "traefik.http.services.onedrive-oauth.loadbalancer.server.port=80"
+
+networks:
+  oauth-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

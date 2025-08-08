@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneDrive OAuth 公共回调服务</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-top: 10px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.online {
+            background: #48bb78;
+        }
+        
+        .status-dot.offline {
+            background: #f56565;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .step {
+            margin-bottom: 25px;
+        }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-copy {
+            background: #38a169;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-copy:hover {
+            background: #2f855a;
+        }
+        
+        .redirect-uri-display {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+            position: relative;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-container {
+            display: none;
+            background: #f8f9fa;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .result-item {
+            margin-bottom: 15px;
+        }
+        
+        .result-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .result-value {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+            border: 1px solid #dee2e6;
+            position: relative;
+            padding-right: 80px;
+        }
+        
+        .result-value .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .help-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .help-link:hover {
+            text-decoration: underline;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 OneDrive OAuth 回调服务</h1>
+            <p>安全获取 OneDrive Refresh Token</p>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">检查服务状态...</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('get-token')">获取 Token</button>
+                <button class="tab" onclick="switchTab('refresh-token')">刷新 Token</button>
+                <button class="tab" onclick="switchTab('help')">使用帮助</button>
+            </div>
+            
+            <!-- 获取 Token 标签页 -->
+            <div id="get-token" class="tab-content active">
+                <div class="step">
+                    <div class="step-header">
+                        <div class="step-number">1</div>
+                        <div class="step-title">配置回调地址</div>
+                    </div>
+                    <div class="redirect-uri-display">
+                        <span id="redirectUri"></span>
+                        <button class="btn btn-copy copy-btn" onclick="copyText('redirectUri')">复制</button>
+                    </div>
+                    <small style="color: #666;">请将此地址添加到你的 Azure 应用的重定向 URI 中</small>
+                </div>
+                
+                <div class="step">
+                    <div class="step-header">
+                        <div class="step-number">2</div>
+                        <div class="step-title">填写应用信息</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Client ID (应用程序 ID) *</label>
+                        <input type="text" id="clientId" placeholder="例如: 12345678-1234-1234-1234-123456789012">
+                        <small>在 Azure 应用概述页面可以找到</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Client Secret (客户端密码) *</label>
+                        <input type="password" id="clientSecret" placeholder="输入你的客户端密码">
+                        <small>在证书和密码页面创建</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>租户类型</label>
+                        <select id="tenant">
+                            <option value="common">任何账户 (推荐)</option>
+                            <option value="organizations">仅组织账户</option>
+                            <option value="consumers">仅个人账户</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>权限范围</label>
+                        <select id="scope">
+                            <option value="Files.Read Files.Read.All Files.ReadWrite Files.ReadWrite.All offline_access">完全访问 (读写所有文件)</option>
+                            <option value="Files.Read Files.Read.All offline_access">只读访问</option>
+                            <option value="Files.ReadWrite Files.ReadWrite.All Sites.Read.All offline_access">文件和站点访问</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-header">
+                        <div class="step-number">3</div>
+                        <div class="step-title">开始授权</div>
+                    </div>
+                    <button class="btn btn-primary" onclick="startOAuth()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        开始授权
+                    </button>
+                </div>
+                
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 15px; color: #666;">正在处理授权...</p>
+                </div>
+                
+                <div id="result" class="result-container"></div>
+            </div>
+            
+            <!-- 刷新 Token 标签页 -->
+            <div id="refresh-token" class="tab-content">
+                <div class="alert alert-info">
+                    使用已有的 Refresh Token 获取新的 Access Token
+                </div>
+                
+                <div class="form-group">
+                    <label>Client ID *</label>
+                    <input type="text" id="refreshClientId" placeholder="应用程序 ID">
+                </div>
+                
+                <div class="form-group">
+                    <label>Client Secret *</label>
+                    <input type="password" id="refreshClientSecret" placeholder="客户端密码">
+                </div>
+                
+                <div class="form-group">
+                    <label>Refresh Token *</label>
+                    <input type="text" id="refreshTokenInput" placeholder="粘贴你的 Refresh Token">
+                </div>
+                
+                <div class="form-group">
+                    <label>租户类型</label>
+                    <select id="refreshTenant">
+                        <option value="common">任何账户 (推荐)</option>
+                        <option value="organizations">仅组织账户</option>
+                        <option value="consumers">仅个人账户</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="refreshAccessToken()">刷新 Token</button>
+                
+                <div id="refreshLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 15px; color: #666;">正在刷新 Token...</p>
+                </div>
+                
+                <div id="refreshResult" class="result-container"></div>
+            </div>
+            
+            <!-- 帮助标签页 -->
+            <div id="help" class="tab-content">
+                <div class="alert alert-info">
+                    <strong>快速指南</strong>
+                </div>
+                
+                <h3 style="margin: 20px 0 10px 0;">📋 如何在 Azure 创建应用</h3>
+                <ol style="line-height: 1.8; color: #555;">
+                    <li>访问 <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" class="help-link">Azure 应用注册</a></li>
+                    <li>点击"新注册"</li>
+                    <li>填写应用名称（任意）</li>
+                    <li>选择支持的账户类型（建议选择"任何组织目录中的账户和个人 Microsoft 账户"）</li>
+                    <li>重定向 URI 选择 "Web"，填入本页面顶部显示的回调地址</li>
+                    <li>注册后，在概述页面复制"应用程序(客户端) ID"</li>
+                    <li>进入"证书和密码"，创建新的客户端密码，复制密码值</li>
+                </ol>
+                
+                <h3 style="margin: 20px 0 10px 0;">🔑 Token 说明</h3>
+                <ul style="line-height: 1.8; color: #555;">
+                    <li><strong>Access Token:</strong> 用于访问 API，有效期通常为 1 小时</li>
+                    <li><strong>Refresh Token:</strong> 用于刷新 Access Token，长期有效</li>
+                    <li>请妥善保管你的 Refresh Token，不要泄露给他人</li>
+                </ul>
+                
+                <h3 style="margin: 20px 0 10px 0;">⚠️ 注意事项</h3>
+                <ul style="line-height: 1.8; color: #555;">
+                    <li>本服务运行在本地服务器，所有数据处理均在您的服务器上完成</li>
+                    <li>Client Secret 等敏感信息不会被存储，仅用于一次性请求</li>
+                    <li>建议使用专门的应用 ID，不要使用生产环境的凭据</li>
+                    <li>如果授权失败，请检查回调地址是否正确配置</li>
+                </ul>
+                
+                <div class="alert alert-warning" style="margin-top: 20px;">
+                    <strong>安全提醒：</strong>本服务不存储任何用户凭据信息，所有操作均在本地完成。
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // API 基础地址 - 自动适配
+        // 如果是本地开发环境（localhost），使用端口3000
+        // 如果是生产环境（通过域名访问），使用相对路径/api
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_BASE_URL = isLocalhost 
+            ? window.location.protocol + '//' + window.location.hostname + ':3000/api'
+            : '/api';
+        const HEALTH_URL = isLocalhost
+            ? window.location.protocol + '//' + window.location.hostname + ':3000/health'
+            : '/health';
+        
+        // 设置回调地址
+        const currentUrl = window.location.origin + window.location.pathname;
+        document.getElementById('redirectUri').textContent = currentUrl;
+        
+        // 检查服务状态
+        async function checkServiceStatus() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            try {
+                const response = await fetch(HEALTH_URL);
+                if (response.ok) {
+                    statusDot.classList.add('online');
+                    statusDot.classList.remove('offline');
+                    statusText.textContent = '服务正常运行';
+                } else {
+                    throw new Error('Service not healthy');
+                }
+            } catch (error) {
+                statusDot.classList.add('offline');
+                statusDot.classList.remove('online');
+                statusText.textContent = '服务未连接';
+                console.error('Service health check failed:', error);
+            }
+        }
+        
+        // 页面加载时检查服务状态
+        checkServiceStatus();
+        setInterval(checkServiceStatus, 30000); // 每30秒检查一次
+        
+        // 标签切换
+        function switchTab(tabName) {
+            // 切换标签按钮状态
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 切换内容显示
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+        }
+        
+        // 复制文本
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                event.target.textContent = '已复制';
+                setTimeout(() => {
+                    event.target.textContent = '复制';
+                }, 2000);
+            });
+        }
+        
+        // 复制结果值
+        function copyValue(value, btn) {
+            navigator.clipboard.writeText(value).then(() => {
+                btn.textContent = '已复制';
+                setTimeout(() => {
+                    btn.textContent = '复制';
+                }, 2000);
+            });
+        }
+        
+        // 开始 OAuth 授权
+        function startOAuth() {
+            const clientId = document.getElementById('clientId').value.trim();
+            const clientSecret = document.getElementById('clientSecret').value.trim();
+            const tenant = document.getElementById('tenant').value;
+            const scope = document.getElementById('scope').value;
+            
+            if (!clientId || !clientSecret) {
+                alert('请填写 Client ID 和 Client Secret');
+                return;
+            }
+            
+            // 保存到 sessionStorage
+            sessionStorage.setItem('oauth_client_id', clientId);
+            sessionStorage.setItem('oauth_client_secret', clientSecret);
+            sessionStorage.setItem('oauth_tenant', tenant);
+            sessionStorage.setItem('oauth_scope', scope);
+            
+            // 构建授权 URL
+            const authUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?` +
+                `client_id=${encodeURIComponent(clientId)}` +
+                `&response_type=code` +
+                `&redirect_uri=${encodeURIComponent(currentUrl)}` +
+                `&scope=${encodeURIComponent(scope)}` +
+                `&response_mode=query`;
+            
+            // 跳转到授权页面
+            window.location.href = authUrl;
+        }
+        
+        // 处理回调
+        async function handleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                showError(`授权失败: ${error}`, urlParams.get('error_description'));
+                return;
+            }
+            
+            if (!code) {
+                return;
+            }
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            
+            // 从 sessionStorage 获取信息
+            const clientId = sessionStorage.getItem('oauth_client_id');
+            const clientSecret = sessionStorage.getItem('oauth_client_secret');
+            const tenant = sessionStorage.getItem('oauth_tenant') || 'common';
+            const scope = sessionStorage.getItem('oauth_scope') || 'Files.ReadWrite.All offline_access';
+            
+            if (!clientId || !clientSecret) {
+                showError('会话已过期', '请重新填写应用信息并授权');
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+            
+            try {
+                // 使用本地 API 服务器交换 token
+                const response = await fetch(`${API_BASE_URL}/token/${tenant}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        code: code,
+                        redirect_uri: currentUrl,
+                        scope: scope
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || data.error) {
+                    showError('获取 Token 失败', data.error_description || data.error);
+                } else {
+                    showResult(data);
+                    // 清理 sessionStorage
+                    sessionStorage.clear();
+                    // 清理 URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (err) {
+                showError('网络错误', '无法连接到本地 API 服务器，请确保服务正在运行');
+                console.error('API request failed:', err);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // 显示结果
+        function showResult(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>✅ 成功获取 Token!</strong>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Refresh Token (刷新令牌):</div>
+                    <div class="result-value">
+                        ${data.refresh_token || '未提供'}
+                        <button class="btn btn-copy copy-btn" onclick="copyValue('${data.refresh_token}', this)">复制</button>
+                    </div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Access Token (访问令牌):</div>
+                    <div class="result-value">
+                        ${data.access_token}
+                        <button class="btn btn-copy copy-btn" onclick="copyValue('${data.access_token}', this)">复制</button>
+                    </div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Token 信息:</div>
+                    <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <div><strong>类型:</strong> ${data.token_type}</div>
+                        <div><strong>过期时间:</strong> ${data.expires_in} 秒</div>
+                        <div><strong>权限范围:</strong> ${data.scope}</div>
+                        <div><strong>获取时间:</strong> ${data.obtained_at || new Date().toISOString()}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 显示错误
+        function showError(title, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'alert alert-error';
+            resultDiv.innerHTML = `
+                <strong>${title}</strong>
+                ${message ? `<br>${message}` : ''}
+            `;
+        }
+        
+        // 刷新 Access Token
+        async function refreshAccessToken() {
+            const clientId = document.getElementById('refreshClientId').value.trim();
+            const clientSecret = document.getElementById('refreshClientSecret').value.trim();
+            const refreshToken = document.getElementById('refreshTokenInput').value.trim();
+            const tenant = document.getElementById('refreshTenant').value;
+            
+            if (!clientId || !clientSecret || !refreshToken) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            const loadingDiv = document.getElementById('refreshLoading');
+            const resultDiv = document.getElementById('refreshResult');
+            
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/refresh/${tenant}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        refresh_token: refreshToken
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || data.error) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = 'alert alert-error';
+                    resultDiv.innerHTML = `
+                        <strong>刷新失败</strong><br>
+                        ${data.error_description || data.error}
+                    `;
+                } else {
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = 'result-container';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✅ 成功刷新 Token!</strong>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">新的 Access Token:</div>
+                            <div class="result-value">
+                                ${data.access_token}
+                                <button class="btn btn-copy copy-btn" onclick="copyValue('${data.access_token}', this)">复制</button>
+                            </div>
+                        </div>
+                        ${data.refresh_token ? `
+                        <div class="result-item">
+                            <div class="result-label">新的 Refresh Token:</div>
+                            <div class="result-value">
+                                ${data.refresh_token}
+                                <button class="btn btn-copy copy-btn" onclick="copyValue('${data.refresh_token}', this)">复制</button>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="result-item">
+                            <div class="result-label">Token 信息:</div>
+                            <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <div><strong>类型:</strong> ${data.token_type}</div>
+                                <div><strong>过期时间:</strong> ${data.expires_in} 秒</div>
+                                <div><strong>权限范围:</strong> ${data.scope}</div>
+                                <div><strong>刷新时间:</strong> ${data.refreshed_at || new Date().toISOString()}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'alert alert-error';
+                resultDiv.innerHTML = `
+                    <strong>网络错误</strong><br>
+                    无法连接到本地 API 服务器，请确保服务正在运行
+                `;
+                console.error('Refresh API request failed:', err);
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+        
+        // 页面加载时检查回调
+        window.addEventListener('load', () => {
+            handleCallback();
+        });
+    </script>
+</body>
+</html>
