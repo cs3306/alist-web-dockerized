@@ -162,7 +162,7 @@ GET /health
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/onedrive-oauth
+git clone [https://github.com/yourusername/onedrive-oauth](https://github.com/cs3306/alist-web-dockerized)
 cd onedrive-oauth
 ```
 
@@ -396,7 +396,7 @@ GET /health
 
 1. **克隆仓库**
 ```bash
-git clone https://github.com/yourusername/onedrive-oauth
+git clone [https://github.com/yourusername/onedrive-oauth](https://github.com/cs3306/alist-web-dockerized)
 cd onedrive-oauth
 ```
 
